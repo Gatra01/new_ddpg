@@ -46,6 +46,7 @@ class Evaluator(object):
                 # update
                 episode_reward += reward
                 episode_steps += 1
+                channel_gain=next_channel_gain
 
             if debug: prYellow('[Evaluate] #Episode{}: episode_reward:{}'.format(episode,episode_reward))
             result.append(episode_reward)
