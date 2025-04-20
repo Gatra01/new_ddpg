@@ -18,7 +18,7 @@ class GameState:
         rand /= np.sum(rand)
         return rand * self.p_max
 
-    def reset(self,gain,*, seed: Optional[int] = None, options: Optional[dict] = None):
+    def reset(self,gain,*):
         power = self.sample_valid_power()
         #super().ini(seed=seed)
         #loc = self.generate_positions()
