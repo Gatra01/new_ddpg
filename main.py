@@ -89,7 +89,7 @@ def test(num_episodes, agent, env, evaluate, model_path, visualize=True, debug=F
     for i in range(num_episodes):
         loc= env.generate_positions() #lokasi untuk s_t
         channel_gain=env.generate_channel_gain(loc) #channel gain untuk s_t
-        validate_reward = evaluate(env, policy,channel_gain debug=debug, visualize=visualize, save=False)
+        validate_reward = evaluate(env, policy,channel_gain, debug=debug, visualize=visualize, save=False)
         if debug: prYellow('[Evaluate] #{}: mean_reward:{}'.format(i, validate_reward))
 
 
