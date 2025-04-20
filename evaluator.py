@@ -14,7 +14,7 @@ class Evaluator(object):
         self.save_path = save_path
         self.results = np.array([]).reshape(num_episodes,0)
 
-    def __call__(self, env, policy, debug=False, visualize=False, save=True):
+    def __call__(self, env, policy, channel_gain,debug=False, visualize=False, save=True):
 
         self.is_training = False
         observation = None
@@ -23,7 +23,7 @@ class Evaluator(object):
         for episode in range(self.num_episodes):
 
             # reset at the start of episode
-            observation = env.reset()
+            observation,info = env.reset(channel_gain)
             episode_steps = 0
             episode_reward = 0.
                 
@@ -34,8 +34,9 @@ class Evaluator(object):
             while not done:
                 # basic operation, action ,reward, blablabla ...
                 action = policy(observation)
-
-                observation, reward, done, info = env.step(action)
+                next_loc= env.generate_positions() #lokasi untuk s_t
+                next_channel_gain=env.generate_channel_gain(next_loc)
+                observation, reward, done, info,EE,rate = env.step(action,channel_gain,next_channel_gain)
                 if self.max_episode_length and episode_steps >= self.max_episode_length -1:
                     done = True
                 
