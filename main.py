@@ -5,6 +5,7 @@ import argparse
 from copy import deepcopy
 import torch
 import gym
+from env import GameState
 
 from normalized_env import NormalizedEnv
 from evaluator import Evaluator
@@ -20,19 +21,23 @@ def train(num_iterations, agent, env,  evaluate, validate_steps, output, max_epi
     episode_reward = 0.
     observation = None
     while step < num_iterations:
+        loc= env.generate_positions() #lokasi untuk s_t
+        channel_gain=env.generate_channel_gain(loc) #channel gain untuk s_t
         # reset if it is the start of episode
         if observation is None:
-            observation = deepcopy(env.reset())
+            observation,info = deepcopy(env.reset(channel_gain))
             agent.reset(observation)
 
         # agent pick action ...
         if step <= args.warmup:
-            action = agent.random_action()
+            action = env.sample_valid_power()
         else:
             action = agent.select_action(observation)
+        next_loc= env.generate_positions() #lokasi untuk s_t
+        next_channel_gain=env.generate_channel_gain(next_loc)
         
         # env response with next_observation, reward, terminate_info
-        observation2, reward, done, info = env.step(action)
+        observation2, reward, done, info, EE,rate = env.step(action,channel_gain,next_channel_gain)
         observation2 = deepcopy(observation2)
         if max_episode_length and episode_steps >= max_episode_length -1:
             done = True
@@ -45,7 +50,7 @@ def train(num_iterations, agent, env,  evaluate, validate_steps, output, max_epi
         # [optional] evaluate
         if evaluate is not None and validate_steps > 0 and step % validate_steps == 0:
             policy = lambda x: agent.select_action(x, decay_epsilon=False)
-            validate_reward = evaluate(env, policy, debug=False, visualize=False)
+            validate_reward = evaluate(env, policy, channel_gain, debug=False, visualize=False)
             if debug: prYellow('[Evaluate] Step_{:07d}: mean_reward:{}'.format(step, validate_reward))
 
         # [optional] save intermideate model
@@ -57,6 +62,7 @@ def train(num_iterations, agent, env,  evaluate, validate_steps, output, max_epi
         episode_steps += 1
         episode_reward += reward
         observation = deepcopy(observation2)
+        channel_gain=next_channel_gain
 
         if done: # end of episode
             if debug: prGreen('#{}: episode_reward:{} steps:{}'.format(episode,episode_reward,step))
@@ -81,7 +87,9 @@ def test(num_episodes, agent, env, evaluate, model_path, visualize=True, debug=F
     policy = lambda x: agent.select_action(x, decay_epsilon=False)
 
     for i in range(num_episodes):
-        validate_reward = evaluate(env, policy, debug=debug, visualize=visualize, save=False)
+        loc= env.generate_positions() #lokasi untuk s_t
+        channel_gain=env.generate_channel_gain(loc) #channel gain untuk s_t
+        validate_reward = evaluate(env, policy,channel_gain debug=debug, visualize=visualize, save=False)
         if debug: prYellow('[Evaluate] #{}: mean_reward:{}'.format(i, validate_reward))
 
 
@@ -90,7 +98,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='PyTorch on TORCS with Multi-modal')
 
     parser.add_argument('--mode', default='train', type=str, help='support option: train/test')
-    parser.add_argument('--env', default='Pendulum-v0', type=str, help='open-ai gym environment')
+    parser.add_argument('--env', default='Massive IoT', type=str, help='open-ai gym environment')
     parser.add_argument('--hidden1', default=400, type=int, help='hidden num of first fully connect layer')
     parser.add_argument('--hidden2', default=300, type=int, help='hidden num of second fully connect layer')
     parser.add_argument('--rate', default=0.001, type=float, help='learning rate')
@@ -122,14 +130,14 @@ if __name__ == "__main__":
     if args.resume == 'default':
         args.resume = 'output/{}-run0'.format(args.env)
 
-    env = NormalizedEnv(gym.make(args.env))
+    env = GameState(5,3)
 
     if args.seed > 0:
         np.random.seed(args.seed)
         env.seed(args.seed)
 
-    nb_states = env.observation_space.shape[0]
-    nb_actions = env.action_space.shape[0]
+    nb_states = env.observation_space
+    nb_actions = env.action_space
 
 
     agent = DDPG(nb_states, nb_actions, args)
